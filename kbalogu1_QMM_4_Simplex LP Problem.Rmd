@@ -1,0 +1,173 @@
+---
+title: "QMM Assignment 4 - Simplex Solution"
+author: "**Kehinde Balogun (KSU ID: 811285476)**"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+<style type="text/css">
+  body{ font-size: 12pt;}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Problem 1**
+
+***The Weigelt Corporation***
+
+
+The Weigelt Corporation has three branch plants with excess production capacity.
+
+Fortunately, the corporation has a new product ready to begin production, and all three plants have this capability, so some of the excess capacity can be used in this way. This product can be made in three sizes--large, medium, and small--that yield a net unit profit of 420 dollars, 360 dollars, and 300 dollars, respectively. Plants 1, 2, and 3 have the excess capacity to produce 750, 900, and 450 units per day of this product, respectively, regardless of the size or combination of sizes involved.
+
+The amount of available in-process storage space also imposes a limitation on the production rates of the new product. Plants 1, 2, and 3 have 13,000, 12,000, and 5,000 square feet, respectively, of in-process storage space available for a day's production of this product. Each unit of the large, medium, and small sizes produced per day requires 20, 15, and 12 square feet, respectively. Sales forecasts indicate that if available, 900, 1,200, and 750 units of the large, medium, and small sizes, respectively, would be sold per day.
+
+At each plant, some employees will need to be laid off unless most of the plant’s excess production capacity can be used to produce the new product. To avoid layoffs if possible, management has decided that the plants should use the same percentage of their excess capacity to produce the new product.
+Management wishes to know how much of each of the sizes should be produced
+by each of the plants to maximize profit.
+
+a. Solve the objective function using the Simplex Method solution
+
+
+**Solution**
+
+**Assumption**: Weigelt Corporation is into the production of BED
+
+
+*Brief Notes*: 
+
+The decision variables includes the following:
+ 
+The number of each sizes of product: $$ b_s, \hspace{.2cm} b_m, \hspace{.2cm} and  \hspace{.2cm} b_l $$
+
+Plants production capacity $$ p_c $$ where c is representing each of the sizes of product.
+
+Plants in-process storage  $$ i_n $$ where n is representing each of the sizes of product.
+
+Sales forecast of small bed  $$ s_f $$ where f is representing each of the sizes of product.
+
+Employees at plants to be laid off is $$e_m$$ such that m is representing each plant's employee strength.
+
+
+Hence, the linear programming model for the Weigelt Corporation regarding the business decisions as to what sizes of bed should be produced is as follows;
+
+The objective function: $$ Maz \hspace{.2cm} Z = 300b_s + 360b_m + 420b_l $$
+
+subject to:  
+
+*In-process storage*:
+
+Plant 1 - $$ 12i_s + 15i_m + 20i_l\le 13000 $$
+Plant 2 - $$ 12i_s + 15i_m + 20i_l\le 12000 $$
+Plant 3 - $$ 12i_s + 15i_m + 20i_l\le 5000 $$
+Therefore, in-process storage for plant 1 - 3 combined is:  $$ 3(12i_s + 15i_m + 20i_l)\le (13000+12000+5000) $$
+ 
+*Production Capacity*:
+
+Plant 1 -  $$ p_s + p_m + p_l\le 750 $$
+Plant 2 -  $$ p_s + p_m + p_l\le 900  $$
+Plant 3 -  $$ p_s + p_m + p_l\le 450 $$
+
+Thus, production capacity for plant 1 - 3 combined is: $$ 3(p_s + p_m + p_l)\le (750 + 900 + 450) $$
+ 
+Sales forecast: 
+
+small bed - $$ s_s\le 750 $$ 
+
+medium-size bed - $$ s_m\le 1200 $$
+
+large-size bed - $$ s_l\le 900 $$
+
+Hence, the sales forecast combine together for the three sizes of bed product is:
+
+$$ s_s + s_m + s_l \le (750 + 1200 +900) $$
+
+*Employee number*:
+
+At Plant 1 - 3 combined is - 
+
+$$ e_1 / 750 =  e_2/900 =  e_3/450  $$
+OR 
+
+$$ e_1 / 750 -  e_2/900 =  0  $$
+OR
+
+$$ e_1 / 750 -  e_3/450 =  0  $$
+OR
+
+$$ e_2 / 900 -  e_3/450 =  0  $$
+Non-negativity: 
+ 
+ $$ b_s\ge0 \hspace{.2cm} b_m\ge 0, \hspace{.2cm} \hspace{.2cm} b_l\ge 0, \hspace{.2cm} p_c\ge 0, \hspace{.2cm} i_n\ge 0,\hspace{.2cm} s_f\ge 0, \hspace{.2cm} and \hspace{.2cm} e_m\ge 0 $$
+
+However, to advise the board of Weigelt Corporation on what business decision should be make as to what number of each sizes of bed that should be produced at each plant given the constraints and business rules, I shall employ the simplex method an arm of linear programming model in solving business decisions.
+
+```{r}
+library (lpSolve)
+
+```
+Putting the objective function of maximization into the LP model solve
+
+```{r}
+Bed_Profit <- c(900, 1080, 1260)
+
+```
+Also, putting the business constraints into the model function
+
+```{r}
+business_constraint <- matrix(c(12, 15, 20, 
+                                12, 15, 20,
+                                12, 15, 20,
+                                1, 1, 1,
+                                1, 1, 1,
+                                1, 1, 1,
+                                1, 0, 0,
+                                0, 1, 0,
+                                0, 0, 1,
+                                11, 11, 11,
+                                1, 1, 1,
+                                -4, -4, -4,
+                                -5, -5, -5), nrow = 13, byrow = TRUE)
+
+```
+Setting the direction of each of the business constraints into the model
+
+```{r}
+constraint_direction <- c("<=",
+                          "<=",
+                          "<=",
+                          "<=",
+                          "<=",
+                          "<=",
+                          "<=",
+                          "<=",
+                          "<=",
+                          "=",
+                          "=",
+                          "=",
+                          "=")
+```
+Furthermore, we set the constraint boundary for each of the business constraint
+
+```{r}
+constraint_maximum <- c(13000, 12000, 5000, 750, 900, 450, 750, 1200, 900, 4500, 4500, 4500, 4500)
+
+```
+
+Thus, finding the objective function of maximizing profit 
+
+```{r}
+lp("max", Bed_Profit, business_constraint, constraint_direction, constraint_maximum)
+
+```
+
+
+```{r}
+lp("max", Bed_Profit, business_constraint, constraint_direction, constraint_maximum)$solution
+```
+**Result**: The result of the modelling using the simplex method linear programming shows that **there is  no feasible solution** in maximizing the profit for the production of bed, given the constraints or rules that surrounded the company's activities. This could have been as a result of the constraints that cannot be satisfied such as the employee ratio to plant. 
+
+**Recommendation**: To conclude,I recommend that the company revisit their business activities options and rules and set a new constraint in achieving their objective.
