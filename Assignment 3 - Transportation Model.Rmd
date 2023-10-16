@@ -1,0 +1,260 @@
+---
+title: "BA 64018-003 Assignment 3 - Transportation Model"
+author: "Kehinde Balogun (KSU: 811285476)"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Question**
+
+Heart Start produces automated external defibrillators (AEDs) in each of three different plants
+(A, B and C). The unit production costs and monthly production capacity of the two plants are
+indicated in the table below. The AEDs are sold through three wholesalers. The shipping cost
+from each plant to the warehouse of each wholesaler along with the monthly demand from each
+wholesaler are also indicated in the table. How many AEDs should be produced in each plant,
+and how should they be distributed to each of the three wholesaler warehouses so as to minimize
+the combined cost of production and shipping
+
+```{r}
+table <- matrix(c(20,14,25,400,100,
+                  12,15,14,300,125,
+                  10,12,15,500,150,
+                  80,90,70,"-","-"),nrow = 4, byrow = T)
+
+colnames(table) <- c("Ware. 1", "Ware. 2", "Ware. 3", "P.Cost", "P.Capacity")
+rownames(table) <- c("Plant A", "Plant B", "Plant C", "M.Demand")
+
+table <- as.table(table)
+
+
+library(kableExtra)
+
+table%>%
+  kable()%>%
+  kable_classic()%>%
+  column_spec(2, border_left = T)%>%
+  column_spec(6, border_left = T)%>%
+  row_spec(3, extra_css = "border-bottom:dotted;")
+
+
+```
+
+1. Formulate and solve this transportation problem using R
+2. Formulate the dual of this transportation problem
+3. Make an economic interpretation of the dual
+
+
+**Solution**
+
+**Q.1** 
+In formulating the above problem, we need to find the total production cost for each of the plant to the warehouses. Note that the total production cost is the addition of the amount used in producing each of the goods and the cost of supplying them, that is, transport cost, to each of the warehouse. Hence, the table below is total plant cost of production, supply capacity (Production capacity) and monthly demand;
+
+```{r}
+table <- matrix(c(420,414,425,100,
+                  312,315,314,125,
+                  510,512,515,150,
+                  80,90,70,"240/375"), nrow = 4, byrow = TRUE)
+
+colnames(table) <- c("Ware. 1", "Ware. 2", "Ware. 3", "P.Capacity")
+rownames(table) <- c("Plant A", "Plant B", "Plant C", "M.Demand")
+
+table <- as.table(table)
+
+table%>%
+  kable()%>%
+  kable_classic()%>%
+  column_spec(2, border_left = T)%>%
+  column_spec(5, border_left = T)%>%
+  row_spec(3, extra_css = "border-bottom:dotted;")
+
+
+```
+
+
+Drawing the pictorial transportation diagram of the table above,
+
+```{r}
+library(igraph)
+
+plants <- c("PA","PB","PC")
+supply <- c(100,125,150)
+
+warehouses <- c("W1","W2","W3","W4")
+demand <- c(80,90,70,135)
+
+total_vertices <- length(plants)+length(warehouses)
+g <- graph.empty(n=total_vertices,directed = TRUE)
+
+V(g)$name <- c(plants, warehouses)
+
+
+for(i in 1:length(plants)) {
+  for(j in 1:length(warehouses)) {
+    weight <- min(supply[i], demand[j])
+    if(weight > 0) {
+      g <- add_edges(g, edges = c(plants[i], warehouses[j]), weight = weight)
+    }
+  }
+}
+
+
+layout <- layout_in_circle(g, order = c(1,2,3,4,5,6,7,8))
+
+plot(g, layout=layout, vertex.label.color = "black", vertex.size = 20, edge.arrow.size = 0.5)
+
+```
+
+
+
+In the table above, entity where at which the Monthly Demand intersects Production Capacity shows an unbalance situation where the Production Capacity (supply) is more than the Monthly Demand, and therefore, to rectified this situation, we need want to balance the situation by creating a DUMMY Warehouse named as Warehouse D. 
+
+```{r}
+
+table <- matrix(c(420,414,425,0,100,
+                  312,315,314,0,125,
+                  510,512,515,0,150,
+                  80,90,70,135,375), nrow = 4, byrow = TRUE)
+
+colnames(table) <- c("Ware. 1", "Ware. 2", "Ware. 3","Ware. D", "P.Capacity")
+rownames(table) <- c("Plant A", "Plant B", "Plant C", "M.Demand")
+
+table <- as.table(table)
+
+table%>%
+  kable()%>%
+  kable_classic()%>%
+  column_spec(2, border_left = T)%>%
+  column_spec(6, border_left = T)%>%
+  column_spec(5,extra_css = "color: red; border-top")
+
+```
+
+Having balance the table, we want to formulate the transportation model for the Heart Start. However, we represented each Plant A - C supply to warehouse take symbol of a, b and c and the Warehouse take 1,2 3, and d for dummy warehouse respectively. Hence, the Objection function for Transport cost equals:
+
+$$ Min \hspace{.2cm} TC = 420a_1+414a_2+425a_3+0a_d+312b_1+315b_2+314b_3+0b_d+510c_1+512c_2+515c_3+0c_d $$
+
+Setting the constraints of the variables:
+
+Supply Constraints:
+
+Plant A: $$ a_1+a_2+a_3+a_d \le 100 $$
+Plant B: $$ b_1+b_2+b_3+b_d \le 125 $$
+Plant C: $$ c_1+c_2+c_3+c_d \le 150 $$
+
+Demand Constraints:
+
+Warehouse 1: $$ a_1+b_1+c_1 \ge 80 $$
+Warehouse 2: $$ a_2+b_2+c_2 \ge 90 $$
+Warehouse 3: $$ a_3+b_3+c_3 \ge 70 $$
+Warehouse D: $$ a_d+b_d+c_d \ge 135 $$
+
+Non-negativity of the decision variables: $$ a_i, b_i, c_i $$ where i = 1, 2, 3, d
+
+Solving the formulated transportation model in R.
+
+```{r}
+library(lpSolve)
+
+t.costs <- matrix(c(420,414,425,0,
+                  312,315,314,0,
+                  510,512,515,0), nrow = 3)
+
+
+```
+
+Set up constraint signs and right-hand sides (supply side)
+
+```{r}
+sup.signs <- rep("<=",3)
+sup.rhs <- c(100,125,150)
+
+```
+
+Set up constraint signs and right-hand sides (demand side)
+
+```{r}
+dmd.signs <- rep(">=",4)
+dmd.rhs <- c(80,90,70,135)
+
+```
+
+Run the model 
+
+```{r}
+lptrans_HS <- lp.transport(t.costs,"min",sup.signs,sup.rhs,dmd.signs,dmd.rhs)
+
+```
+
+To get the values of 12 decision variables
+
+```{r}
+lptrans_HS$solution
+```
+
+```{r}
+lptrans_HS$objval
+```
+
+```{r}
+lptrans <- lp.transport(t.costs, "min",sup.signs,sup.rhs,dmd.signs,dmd.rhs)
+
+```
+
+```{r}
+optimal_solution <- lptrans$solution
+basis <- lptrans$Basis
+```
+
+**Q.2**
+In formulating the dual of the transportation problem, supply and demand constraints are represented as $$ s_i $$ and $$ d_j $$ respectively. Hence, the objective function of the dual is:
+
+$$ Max Z \hspace {.2cm} = 80d_1+90d_2+70d_3+135d_4-100s_1-125s_2-150s_3 $$
+
+Constraints: $$ d_i - s_j >= z_ij $$
+
+Thus, 
+
+Plant A transportation of goods to the warehouses are:
+$$ d_1 - s_1 \ge z_11 = 420 $$
+$$ d_2 - s_1 \ge z_12 = 414 $$
+$$ d_3 - s_1 \ge z_13 = 425 $$
+$$ d_4 - s_d \ge z_1d = 0 $$
+
+Plant B transportation of goods to the warehouses are:
+$$ d_1 - s_2 \ge z_11 = 312 $$
+$$ d_2 - s_2 \ge z_12 = 315 $$
+$$ d_3 - s_3 \ge z_13 = 314 $$
+$$ d_4 - s_d \ge z_1d = 0 $$
+
+Plant C transportation of goods to the warehouses are:
+$$ d_1 - s_3 \ge z_11 = 510 $$
+$$ d_2 - s_3 \ge z_12 = 512 $$
+$$ d_3 - s_3 \ge z_13 = 515 $$
+$$ d_4 - s_d \ge z_1d = 0 $$
+
+Where all $$ d_i \ge 0 $$ for j = 1, 2, 3, 4 and $$ s_j \le 0 $$ 
+
+**Q.3**
+
+**Economic Interpretation of the Dual.**
+
+The economic interpretation of the dual function is based on the economic principle of:
+
+i. **Break Even Rule**. This is referred to as Marginal Revenue (MR) equals Marginal Cost (MC). Going by the dual constraints above, $$ d_i - s_j >= z_ij $$. This means $$ d_i \ge s_j + z_ij $$. The demand is the revenue, marginal revenue, gotten by the producer while the total production, marginal cost, is the combination of supply and transportation cost. 
+
+At plant A, more goods were supplied to warehouse 2 where $$ d_2 \ge s_1+z_12 = 414 $$, that is, $$ MR \ge MC $$. On the other hand, less goods were supply to warehouse 1 where $$ d_1 \le s_1+z_11 = 420 $$, that is, $$ MR \le MC $$.
+
+
+At plant B, the goods supplied were more evenly close to warehouse 2 and 3. More goods were supplied to Warehouse 3 where $$ d_3 \ge s_3+z_13 = 314 $$, and less good to warehouse 1 where $$ d_1 \ge s_2+z_11 = 312 $$.
+
+At plant C, less goods were supplied to warehouse 1 and more goods to warehouse D, that is, dummy warehouse. More goods were supplied to Warehouse D where$$ d_4  \ge s_d+z_1d = 0 $$.
+
+In conclusion, at plants A, goods were supplied to warehouses 1 and 2, and the production at plant B and C were supplied to 1 & 3 and 1 & 4 respectively. By the quantity of good supplied to each of the warehouses shows the mind of the producer and where his Marginal Revenue exceeds Marginal Cost. 
+
+i. The Producer business of using Warehouses for good supply.
+
+In our model, the result shows that if the producer will maximise profit, the warehouse that can be use and the quantiy of good that can be supply were shown. For plant A, the model revealed that for their to be profit maximisation given the production capacity and the monthly demand, it is better to supply goods to only warehouses 1 and 2. For the pther two plants (B & C), the model revealed that profit will be maximised if product are supplied to warehouses 1 & 3 and 1 & 4. However, it is worthy to note that warehouse 4 is a dummy warehouse, that is, if producer will have to maximise profit at plant C, a warehouses that matches the features of the dummy warehouse is needed wherein the unbalance production and demand can be reworked to get a balance situation.
